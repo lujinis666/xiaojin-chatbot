@@ -1,0 +1,47 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# ===== 虚拟环境 =====
+.venv/
+venv/
+env/
+.env/
+
+# ===== 【最重要】环境变量文件 — 绝对不能上传！=====
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+*.env
+
+# ===== uv =====
+.uv/
+
+# ===== 编辑器 =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== 系统文件 =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== 日志 / 临时文件 =====
+*.log
+logs/
+tmp/
+temp/
+downloads/
+
+# ===== 测试 =====
+.pytest_cache/
+htmlcov/
+.coverage

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小进 AI · 智能对话助手</title>
+    <meta name="description" content="基于 小进-2.0 的智能 AI 对话助手，提供流畅自然的对话体验">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Markdown & Syntax Highlighting -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.8.0/styles/atom-one-light.min.css">
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.8.0/build/highlight.min.js"></script>
+
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" type="image/png" href="/static/favicon.png?v=2">
+
+</head>
+<body>
+
+
+
+<!-- 应用外层包裹 -->
+<div class="app-wrapper" id="appWrapper">
+
+<!-- 登录/注册遮罩层 (Modal) -->
+<div class="auth-modal-overlay" id="authModal" style="display: none;">
+    <div class="auth-modal-box">
+        <div class="auth-tabs">
+            <button class="auth-tab active" id="tabLogin" onclick="switchAuthTab('login')">登录</button>
+            <button class="auth-tab" id="tabRegister" onclick="switchAuthTab('register')">注册</button>
+        </div>
+        <div class="auth-form" id="loginForm">
+            <input type="text" id="loginUsername" placeholder="用户名" class="auth-input">
+            <input type="password" id="loginPassword" placeholder="密码" class="auth-input">
+            <button class="auth-btn" onclick="login()">登录</button>
+        </div>
+        <div class="auth-form" id="registerForm" style="display: none;">
+            <input type="text" id="regUsername" placeholder="用户名" class="auth-input">
+            <input type="password" id="regPassword" placeholder="密码" class="auth-input">
+            <input type="text" id="regInviteCode" placeholder="邀请码 (必填)" class="auth-input">
+            <button class="auth-btn" onclick="register()">注册</button>
+        </div>
+        <div class="auth-error" id="authError"></div>
+    </div>
+</div>
+
+<!-- 密码修改弹窗 -->
+<div class="custom-modal-overlay" id="pwdModal" style="display: none;">
+    <div class="custom-modal-box">
+        <div class="custom-modal-header">修改密码</div>
+        <div class="custom-modal-body">
+            <input type="password" id="oldPwd" placeholder="原密码" class="auth-input" style="margin-bottom: 10px;">
+            <input type="password" id="newPwd" placeholder="新密码" class="auth-input">
+        </div>
+        <div class="custom-modal-footer">
+            <button class="modal-btn modal-btn-cancel" onclick="closePwdModal()">取消</button>
+            <button class="modal-btn modal-btn-confirm" onclick="submitChangePwd()">确定</button>
+        </div>
+    </div>
+</div>
+
+<!-- 设置弹窗 -->
+<div class="custom-modal-overlay" id="settingsModal" style="display: none;">
+    <div class="custom-modal-box">
+        <div class="custom-modal-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>设置菜单</span>
+            <button onclick="closeSettingsModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-secondary);">&times;</button>
+        </div>
+        <div class="custom-modal-body" id="settingsModalContent" style="display:flex; flex-direction:column; gap:8px;">
+            <!-- 内容由 JS 动态生成 -->
+        </div>
+    </div>
+</div>
+
+<!-- 修改资料弹窗 -->
+<div class="custom-modal-overlay" id="profileModal" style="display: none;">
+    <div class="custom-modal-box">
+        <div class="custom-modal-header">编辑个人资料</div>
+        <div class="custom-modal-body">
+            <label style="font-size:12px; color:var(--text-secondary); margin-bottom:4px; display:block;">用户名</label>
+            <input type="text" id="profileUsername" placeholder="用户名" class="auth-input" style="margin-bottom: 12px;">
+        </div>
+        <div class="custom-modal-footer">
+            <button class="modal-btn modal-btn-cancel" onclick="closeProfileModal()">取消</button>
+            <button class="modal-btn modal-btn-confirm" onclick="submitProfile()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 自定义弹窗 (Modal) -->
+<div class="custom-modal-overlay" id="customModal">
+    <div class="custom-modal-box">
+        <div class="custom-modal-header" id="modalTitle">提示</div>
+        <div class="custom-modal-body" id="modalBody"></div>
+        <div class="custom-modal-footer">
+            <button class="modal-btn modal-btn-cancel" id="modalCancelBtn">取消</button>
+            <button class="modal-btn modal-btn-confirm" id="modalConfirmBtn">确定</button>
+        </div>
+    </div>
+</div>
+
+<!-- 侧边栏：历史会话列表 -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-logo"><img src="/static/ai-avatar.jpg" style="width:24px; height:24px; border-radius:50%; vertical-align:middle; margin-right:6px;"> 小进 历史</div>
+        <button class="new-chat-btn" id="newChatBtn" onclick="newChat()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            新建对话
+        </button>
+    </div>
+    <div class="sidebar-list" id="sessionList">
+        <div class="sidebar-empty">暂无历史记录<br>发送消息后自动保存</div>
+    </div>
+    <div class="sidebar-footer" id="sidebarFooter">
+        <!-- 动态渲染用户信息 -->
+    </div>
+</div>
+
+<div class="chat-container" id="chatContainer">
+
+    <!-- 顶部标题栏 -->
+    <div class="chat-header">
+        <button class="icon-btn" id="sidebarToggle" onclick="toggleSidebar()" title="展开/收起历史">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <line x1="9" y1="3" x2="9" y2="21"/>
+            </svg>
+        </button>
+        <div class="header-avatar"><img src="/static/ai-avatar.jpg" style="width:100%; height:100%; border-radius:50%; object-fit:cover;"></div>
+        <div class="header-info">
+            <div class="header-title">小进-2.0 智能助手</div>
+            <div class="header-status">
+                <span class="status-dot"></span>
+                <span id="statusText">在线 · 随时为你解答</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="icon-btn" id="stopBtn" title="停止生成" onclick="stopGenerating()" style="display:none">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+            </button>
+            <button class="icon-btn" id="clearBtn" title="清空对话" onclick="clearChat()">🗑️</button>
+        </div>
+    </div>
+
+    <!-- 聊天记录区 -->
+    <div class="chat-history" id="chatHistory">
+
+        <!-- 欢迎引导（有消息时隐藏） -->
+        <div class="welcome-screen visible" id="welcomeScreen">
+            <canvas id="pixelPetCanvas" class="pixel-pet-canvas"></canvas>
+            <div class="welcome-title">你好，我是 小进！</div>
+            <div class="welcome-sub">我是基于 小进-2.0 的智能对话助手，可以帮你解答问题、撰写内容、分析数据。</div>
+            <div class="quick-prompts" id="quickPrompts">
+                <button class="quick-prompt-btn" onclick="usePrompt('介绍一下你自己')">👋 介绍一下你自己</button>
+                <button class="quick-prompt-btn" onclick="usePrompt('帮我写一段 Python 代码，实现快速排序')">💻 写一段快速排序代码</button>
+                <button class="quick-prompt-btn" onclick="usePrompt('今天的天气怎么样？')">🌤️ 今天的天气</button>
+                <button class="quick-prompt-btn" onclick="usePrompt('给我讲一个有趣的故事')">📖 讲一个故事</button>
+            </div>
+        </div>
+
+        <!-- 日期分割线 -->
+        <div class="date-divider" id="dateDivider" style="display:none">
+            <span id="dateText"></span>
+        </div>
+
+    </div>
+
+    <!-- 输入区 -->
+    <div class="input-area">
+        <!-- 联网模式横幅 -->
+        <div class="search-mode-banner" id="searchModeBanner">
+            <span class="search-mode-banner-dot"></span>
+            <span>🌐 联网模式已开启 · 每次发送都会搜索互联网获取最新信息</span>
+            <button class="search-mode-banner-close" onclick="toggleSearch()" title="关闭联网">✕</button>
+        </div>
+        <div class="input-row">
+            <!-- 联网切换按钮 -->
+            <button id="searchToggleBtn" onclick="toggleSearch()" title="切换联网搜索模式">
+                🌐
+            </button>
+            <div class="input-wrapper">
+                <textarea id="userInput" placeholder="输入你想说的话..." autocomplete="off" rows="1"></textarea>
+                <span class="char-counter" id="charCounter">0</span>
+            </div>
+            <button id="sendBtn" onclick="sendMessage()" title="发送消息 (Enter)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>
+        </div>
+        <div class="input-hint">
+            <kbd>Enter</kbd> 发送 &nbsp;·&nbsp; <kbd>Shift</kbd>+<kbd>Enter</kbd> 换行
+        </div>
+    </div>
+
+</div><!-- /.chat-container -->
+
+</div><!-- /.app(smith)-wrapper -->
+
+<script src="/static/js/main.js"></script>
+<script src="/static/js/pixel-pet.js"></script>
+
+
+</body>
+</html>
