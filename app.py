@@ -80,14 +80,13 @@ def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'),
                                'favicon.png', mimetype='image/png')
 
-
 import os
 
 # ... 你的其他 Flask 代码 ...
 
 if __name__ == '__main__':
     # 1. 优先读取平台分配的端口，如果读取不到（比如在本地运行）则默认用 5000
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 8080))
 
     # 2. 必须把 host 改为 "0.0.0.0"，让外网网关可以访问
     app.run(host="0.0.0.0", port=port)
