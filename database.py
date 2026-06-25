@@ -11,8 +11,6 @@ if os.path.exists("/data"):
 else:
     # 如果在本地电脑开发，依然保存在项目目录下的 data/history.db
     DB_PATH = os.path.join(BASE_DIR, 'data', 'history.db')
-
-
 # ===================================================
 
 def get_db() -> sqlite3.Connection:
@@ -40,216 +38,58 @@ def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     with sqlite3.connect(DB_PATH) as conn:
         conn.executescript("""
-                           CREATE TABLE IF NOT EXISTS users
-                           (
-                               id
-                               INTEGER
-                               PRIMARY
-                               KEY
-                               AUTOINCREMENT,
-                               username
-                               TEXT
-                               UNIQUE
-                               NOT
-                               NULL,
-                               password_hash
-                               TEXT
-                               NOT
-                               NULL,
-                               role
-                               TEXT
-                               NOT
-                               NULL
-                               DEFAULT
-                               'user',
-                               avatar
-                               TEXT
-                               DEFAULT
-                               NULL,
-                               created_at
-                               DATETIME
-                               NOT
-                               NULL
-                               DEFAULT
-                               CURRENT_TIMESTAMP
-                           );
+            CREATE TABLE IF NOT EXISTS users (
+                id            INTEGER  PRIMARY KEY AUTOINCREMENT,
+                username      TEXT     UNIQUE NOT NULL,
+                password_hash TEXT     NOT NULL,
+                role          TEXT     NOT NULL DEFAULT 'user',
+                avatar        TEXT     DEFAULT NULL,
+                created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
 
-                           CREATE TABLE IF NOT EXISTS invite_codes
-                           (
-                               id
-                               INTEGER
-                               PRIMARY
-                               KEY
-                               AUTOINCREMENT,
-                               code
-                               TEXT
-                               UNIQUE
-                               NOT
-                               NULL,
-                               created_by
-                               INTEGER
-                               NOT
-                               NULL,
-                               used_by
-                               INTEGER
-                               DEFAULT
-                               NULL,
-                               is_used
-                               INTEGER
-                               NOT
-                               NULL
-                               DEFAULT
-                               0,
-                               created_at
-                               DATETIME
-                               NOT
-                               NULL
-                               DEFAULT
-                               CURRENT_TIMESTAMP,
-                               used_at
-                               DATETIME
-                               DEFAULT
-                               NULL,
-                               FOREIGN
-                               KEY
-                           (
-                               created_by
-                           ) REFERENCES users
-                           (
-                               id
-                           ),
-                               FOREIGN KEY
-                           (
-                               used_by
-                           ) REFERENCES users
-                           (
-                               id
-                           )
-                               );
+            CREATE TABLE IF NOT EXISTS invite_codes (
+                id           INTEGER  PRIMARY KEY AUTOINCREMENT,
+                code         TEXT     UNIQUE NOT NULL,
+                created_by   INTEGER  NOT NULL,
+                used_by      INTEGER  DEFAULT NULL,
+                is_used      INTEGER  NOT NULL DEFAULT 0,
+                created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                used_at      DATETIME DEFAULT NULL,
+                FOREIGN KEY (created_by) REFERENCES users(id),
+                FOREIGN KEY (used_by)    REFERENCES users(id)
+            );
 
-                           CREATE TABLE IF NOT EXISTS sessions
-                           (
-                               session_id
-                               TEXT
-                               PRIMARY
-                               KEY,
-                               user_id
-                               INTEGER
-                               NOT
-                               NULL
-                               DEFAULT
-                               1,
-                               title
-                               TEXT
-                               NOT
-                               NULL
-                               DEFAULT
-                               '新对话',
-                               is_pinned
-                               INTEGER
-                               NOT
-                               NULL
-                               DEFAULT
-                               0,
-                               created_at
-                               DATETIME
-                               NOT
-                               NULL
-                               DEFAULT
-                               CURRENT_TIMESTAMP,
-                               updated_at
-                               DATETIME
-                               NOT
-                               NULL
-                               DEFAULT
-                               CURRENT_TIMESTAMP,
-                               FOREIGN
-                               KEY
-                           (
-                               user_id
-                           ) REFERENCES users
-                           (
-                               id
-                           )
-                               );
+            CREATE TABLE IF NOT EXISTS sessions (
+                session_id TEXT     PRIMARY KEY,
+                user_id    INTEGER  NOT NULL DEFAULT 1,
+                title      TEXT     NOT NULL DEFAULT '新对话',
+                is_pinned  INTEGER  NOT NULL DEFAULT 0,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
 
-                           CREATE TABLE IF NOT EXISTS messages
-                           (
-                               id
-                               INTEGER
-                               PRIMARY
-                               KEY
-                               AUTOINCREMENT,
-                               session_id
-                               TEXT
-                               NOT
-                               NULL,
-                               role
-                               TEXT
-                               NOT
-                               NULL, -- 'user' | 'assistant'
-                               content
-                               TEXT
-                               NOT
-                               NULL,
-                               created_at
-                               DATETIME
-                               NOT
-                               NULL
-                               DEFAULT
-                               CURRENT_TIMESTAMP,
-                               FOREIGN
-                               KEY
-                           (
-                               session_id
-                           ) REFERENCES sessions
-                           (
-                               session_id
-                           ) ON DELETE CASCADE
-                               );
+            CREATE TABLE IF NOT EXISTS messages (
+                id         INTEGER  PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT     NOT NULL,
+                role       TEXT     NOT NULL,   -- 'user' | 'assistant'
+                content    TEXT     NOT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE
+            );
 
-                           CREATE INDEX IF NOT EXISTS idx_messages_session
-                               ON messages(session_id, created_at);
+            CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, created_at);
 
-                           CREATE TABLE IF NOT EXISTS admin_logs
-                           (
-                               id
-                               INTEGER
-                               PRIMARY
-                               KEY
-                               AUTOINCREMENT,
-                               admin_id
-                               INTEGER
-                               NOT
-                               NULL,
-                               action
-                               TEXT
-                               NOT
-                               NULL,
-                               target_id
-                               INTEGER
-                               DEFAULT
-                               NULL,
-                               detail
-                               TEXT
-                               DEFAULT
-                               NULL,
-                               created_at
-                               DATETIME
-                               NOT
-                               NULL
-                               DEFAULT
-                               CURRENT_TIMESTAMP,
-                               FOREIGN
-                               KEY
-                           (
-                               admin_id
-                           ) REFERENCES users
-                           (
-                               id
-                           )
-                               );
-                           """)
+            CREATE TABLE IF NOT EXISTS admin_logs (
+                id         INTEGER  PRIMARY KEY AUTOINCREMENT,
+                admin_id   INTEGER  NOT NULL,
+                action     TEXT     NOT NULL,
+                target_id  INTEGER  DEFAULT NULL,
+                detail     TEXT     DEFAULT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (admin_id) REFERENCES users(id)
+            );
+        """)
 
         # 自动迁移：尝试为现有的 sessions 表添加 is_pinned 和 user_id 字段
         try:
