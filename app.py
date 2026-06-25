@@ -16,7 +16,13 @@ app = Flask(__name__)
 secret_key = os.getenv("FLASK_SECRET_KEY")
 if not secret_key:
     # 尝试从本地持久化密钥文件读取，确保密钥稳定
-    secret_key_file = os.path.join(app.root_path, '.secret_key')
+    if os.path.exists("/data"):
+        # 如果在 Railway 云端，把密钥文件存在永久云盘里，防止重启后用户被迫登出
+        secret_key_file = "/data/.secret_key"
+    else:
+        # 本地开发环境依然保持原样
+        secret_key_file = os.path.join(app.root_path, '.secret_key')
+
     if os.path.exists(secret_key_file):
         with open(secret_key_file, 'r', encoding='utf-8') as f:
             secret_key = f.read().strip()

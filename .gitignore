@@ -45,3 +45,8 @@ downloads/
 .pytest_cache/
 htmlcov/
 .coverage
+
+# ===== 本地数据库与敏感数据 (绝对不能上传) =====
+.secret_key
+data/
+backups/
