@@ -12,7 +12,7 @@ base_url = os.getenv("LONGCAT_BASE_URL")
 api_key  = os.getenv("LONGCAT_API_KEY")
 
 model = init_chat_model(
-    model="LongCat-2.0-Preview",
+    model="LongCat-2.0",
     model_provider="openai",
     base_url=base_url,
     api_key=api_key,
