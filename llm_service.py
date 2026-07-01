@@ -8,11 +8,12 @@ from langchain.chat_models import init_chat_model
 load_dotenv()
 
 # ── 模型初始化 ───────────────────────────────────────────────
-base_url = os.getenv("LONGCAT_BASE_URL")
-api_key  = os.getenv("LONGCAT_API_KEY")
+base_url   = os.getenv("LONGCAT_BASE_URL")
+api_key    = os.getenv("LONGCAT_API_KEY")
+model_name = os.getenv("LONGCAT_MODEL_NAME", "LongCat-2.0")
 
 model = init_chat_model(
-    model="LongCat-2.0",
+    model=model_name,
     model_provider="openai",
     base_url=base_url,
     api_key=api_key,
