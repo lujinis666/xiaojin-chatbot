@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, session
-from database import get_db
+from database import get_db, get_setting
 from werkzeug.security import generate_password_hash, check_password_hash
 
 auth_bp = Blueprint('auth', __name__)
@@ -46,6 +46,14 @@ def update_profile():
         
     return jsonify({'success': True})
 
+@auth_bp.route('/api/auth/register-config', methods=['GET'])
+def register_config():
+    """前端用来判断注册时是否需要邀请码"""
+    db = get_db()
+    require = get_setting(db, 'require_invite_code', '1')
+    return jsonify({'require_invite_code': require == '1'})
+
+
 @auth_bp.route('/api/auth/register', methods=['POST'])
 def register():
     data = request.json or {}
@@ -53,17 +61,24 @@ def register():
     password = data.get('password', '')
     invite_code = data.get('invite_code', '').strip()
 
-    if not username or not password or not invite_code:
-        return jsonify({'error': '用户名、密码和邀请码不能为空'}), 400
-
     db = get_db()
+    require_invite = get_setting(db, 'require_invite_code', '1') == '1'
+
+    if not username or not password:
+        return jsonify({'error': '用户名和密码不能为空'}), 400
+
+    if require_invite and not invite_code:
+        return jsonify({'error': '邀请码不能为空'}), 400
+
     with db:
-        # 校验邀请码
-        invite = db.execute("SELECT * FROM invite_codes WHERE code=?", (invite_code,)).fetchone()
-        if not invite:
-            return jsonify({'error': '无效的邀请码'}), 400
-        if invite['is_used'] == 1:
-            return jsonify({'error': '该邀请码已被使用'}), 400
+        # 需要邀请码时校验
+        invite = None
+        if require_invite:
+            invite = db.execute("SELECT * FROM invite_codes WHERE code=?", (invite_code,)).fetchone()
+            if not invite:
+                return jsonify({'error': '无效的邀请码'}), 400
+            if invite['is_used'] == 1:
+                return jsonify({'error': '该邀请码已被使用'}), 400
         
         # 校验用户名
         existing_user = db.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
@@ -78,11 +93,12 @@ def register():
         )
         user_id = cursor.lastrowid
         
-        # 标记邀请码已使用
-        db.execute(
-            "UPDATE invite_codes SET is_used=1, used_by=?, used_at=CURRENT_TIMESTAMP WHERE id=?",
-            (user_id, invite['id'])
-        )
+        # 标记邀请码已使用（仅在需要邀请码时）
+        if require_invite and invite:
+            db.execute(
+                "UPDATE invite_codes SET is_used=1, used_by=?, used_at=CURRENT_TIMESTAMP WHERE id=?",
+                (user_id, invite['id'])
+            )
     
     # 自动登录
     session['user_id'] = user_id

@@ -2,7 +2,7 @@ import random
 import string
 from flask import Blueprint, request, jsonify, session
 from werkzeug.security import generate_password_hash
-from database import get_db
+from database import get_db, get_setting, set_setting
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -304,3 +304,29 @@ def list_admin_logs():
         LIMIT ?
     """, (limit,)).fetchall()
     return jsonify([dict(r) for r in rows])
+
+
+@admin_bp.route('/api/admin/settings', methods=['GET'])
+def get_settings():
+    """获取所有系统设置"""
+    db = get_db()
+    rows = db.execute("SELECT key, value FROM system_settings").fetchall()
+    settings = {row['key']: row['value'] for row in rows}
+    return jsonify(settings)
+
+
+@admin_bp.route('/api/admin/settings/require_invite_code', methods=['PUT'])
+def toggle_invite_code():
+    """切换邀请码注册开关"""
+    data = request.json or {}
+    enabled = data.get('enabled')
+    if enabled is None:
+        return jsonify({'error': '缺少 enabled 参数'}), 400
+
+    new_value = '1' if enabled else '0'
+    db = get_db()
+    set_setting(db, 'require_invite_code', new_value)
+    log_admin_action(db, session.get('user_id'), 'toggle_invite_code',
+                     detail=f'{"开启" if enabled else "关闭"}邀请码注册要求')
+    db.commit()
+    return jsonify({'ok': True, 'require_invite_code': enabled})

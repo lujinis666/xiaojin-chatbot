@@ -465,12 +465,28 @@
     }
 
     // 暴露给全局的 Auth 函数
-    window.switchAuthTab = function(tab) {
+    let _requireInviteCode = true; // 默认需要邀请码
+
+    window.switchAuthTab = async function(tab) {
         document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
         document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
         document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
         document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
         document.getElementById('authError').textContent = '';
+
+        // 切换到注册时，查询是否需要邀请码
+        if (tab === 'register') {
+            try {
+                const res = await originalFetch('/api/auth/register-config');
+                const cfg = await res.json();
+                _requireInviteCode = cfg.require_invite_code;
+                const inviteEl = document.getElementById('regInviteCode');
+                if (inviteEl) {
+                    inviteEl.style.display = _requireInviteCode ? 'block' : 'none';
+                    inviteEl.value = '';
+                }
+            } catch(e) { /* 查询失败保持默认需要邀请码 */ }
+        }
     };
 
     window.login = async function() {
@@ -495,11 +511,16 @@
         const u = document.getElementById('regUsername').value;
         const p = document.getElementById('regPassword').value;
         const c = document.getElementById('regInviteCode').value;
-        if(!u||!p||!c) return document.getElementById('authError').textContent = '请完整填写注册信息';
+
+        if(!u||!p) return document.getElementById('authError').textContent = '请输入用户名和密码';
+        if(_requireInviteCode && !c) return document.getElementById('authError').textContent = '请输入邀请码';
         
+        const body = {username:u, password:p};
+        if(_requireInviteCode) body.invite_code = c;
+
         const res = await originalFetch('/api/auth/register', {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({username:u, password:p, invite_code:c})
+            body: JSON.stringify(body)
         });
         const data = await res.json();
         if(res.ok) {
@@ -1088,4 +1109,4 @@
                 userInput.focus();
             }
         }
-    }
+    }

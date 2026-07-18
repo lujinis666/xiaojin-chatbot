@@ -467,6 +467,69 @@
         @media (max-width: 480px) {
             .stats-grid { grid-template-columns: 1fr; }
         }
+
+        /* ── Toggle Switch (iOS style) ── */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            background: var(--surface);
+            border-radius: var(--radius-sm);
+            margin-bottom: 16px;
+        }
+        .toggle-row .toggle-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-1);
+            flex: 1;
+        }
+        .toggle-row .toggle-hint {
+            font-size: 11px;
+            color: var(--text-3);
+            font-weight: 400;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background: #ccc;
+            border-radius: 24px;
+            transition: background 0.3s;
+        }
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            left: 3px;
+            bottom: 3px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+        .toggle-switch input:checked + .toggle-slider {
+            background: var(--primary);
+        }
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(20px);
+        }
+        .toggle-switch input:disabled + .toggle-slider {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -609,6 +672,16 @@
                     <button class="btn btn-primary btn-sm" onclick="generateCodes()">生成邀请码</button>
                     <button class="btn btn-danger btn-sm" onclick="deleteUnusedCodes()">清理未使用</button>
                 </div>
+            </div>
+            <div class="toggle-row" id="inviteToggleRow">
+                <div>
+                    <div class="toggle-label">🔐 注册需要邀请码</div>
+                    <div class="toggle-hint" id="inviteToggleHint">开启后用户注册时必须提供有效邀请码</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="inviteToggle" checked onchange="toggleInviteCode(this.checked)">
+                    <span class="toggle-slider"></span>
+                </label>
             </div>
             <div class="card-body">
                 <div class="table-wrap">
@@ -946,14 +1019,16 @@ async function fetchLogs() {
             'delete_user': '注销用户', 'change_role': '修改角色',
             'reset_password': '重置密码',
             'generate_codes': '生成邀请码', 'delete_code': '删除邀请码',
-            'delete_unused_codes': '清理邀请码'
+            'delete_unused_codes': '清理邀请码',
+            'toggle_invite_code': '切换邀请码开关'
         };
         const actionDots = {
             'ban_user': 'danger', 'unban_user': 'info',
             'delete_user': 'danger', 'change_role': 'warning',
             'reset_password': 'warning',
             'generate_codes': '', 'delete_code': 'danger',
-            'delete_unused_codes': 'danger'
+            'delete_unused_codes': 'danger',
+            'toggle_invite_code': 'info'
         };
         container.innerHTML = data.map(l => `
             <div class="log-item">
@@ -1202,7 +1277,55 @@ function closeDrawer() {
 //  Refresh All
 // ============================================================
 async function refreshAll() {
-    await Promise.all([fetchStats(), fetchCodes(), fetchUsers()]);
+    await Promise.all([fetchStats(), fetchCodes(), fetchUsers(), fetchInviteToggle()]);
+}
+
+// ============================================================
+//  Settings: Invite Code Toggle
+// ============================================================
+async function fetchInviteToggle() {
+    try {
+        const res = await api('/api/admin/settings');
+        const settings = await res.json();
+        const enabled = settings.require_invite_code === '1';
+        const toggle = document.getElementById('inviteToggle');
+        if (toggle) toggle.checked = enabled;
+        const hint = document.getElementById('inviteToggleHint');
+        if (hint) hint.textContent = enabled
+            ? '开启后用户注册时必须提供有效邀请码'
+            : '已关闭，用户可以直接注册无需邀请码';
+    } catch (e) {
+        console.warn('Failed to fetch invite toggle setting');
+    }
+}
+
+async function toggleInviteCode(enabled) {
+    const toggle = document.getElementById('inviteToggle');
+    toggle.disabled = true;
+    try {
+        const res = await api('/api/admin/settings/require_invite_code', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            toast(enabled ? '已开启邀请码注册要求' : '已关闭邀请码注册要求，用户可自由注册', 'success');
+            const hint = document.getElementById('inviteToggleHint');
+            if (hint) hint.textContent = enabled
+                ? '开启后用户注册时必须提供有效邀请码'
+                : '已关闭，用户可以直接注册无需邀请码';
+            fetchLogs();
+        } else {
+            toast(data.error || '操作失败', 'error');
+            toggle.checked = !enabled;  // revert
+        }
+    } catch (e) {
+        toast('设置接口不可用', 'error');
+        toggle.checked = !enabled;  // revert
+    } finally {
+        toggle.disabled = false;
+    }
 }
 
 // ============================================================

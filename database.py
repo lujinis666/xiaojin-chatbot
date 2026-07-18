@@ -89,6 +89,11 @@ def init_db():
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (admin_id) REFERENCES users(id)
             );
+
+            CREATE TABLE IF NOT EXISTS system_settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
         """)
 
         # 自动迁移：尝试为现有的 sessions 表添加 is_pinned 和 user_id 字段
@@ -124,6 +129,27 @@ def init_db():
                 "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
                 ('admin', hashed_pwd, 'admin')
             )
+
+        # 初始化默认系统设置
+        conn.execute(
+            "INSERT OR IGNORE INTO system_settings (key, value) VALUES (?, ?)",
+            ('require_invite_code', '1')
+        )
+
+
+def get_setting(db, key, default=None):
+    """获取系统设置值"""
+    row = db.execute("SELECT value FROM system_settings WHERE key=?", (key,)).fetchone()
+    return row['value'] if row else default
+
+
+def set_setting(db, key, value):
+    """设置系统设置值"""
+    with db:
+        db.execute(
+            "INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)",
+            (key, str(value))
+        )
 
 
 def load_recent_history(db: sqlite3.Connection, session_id: str, user_id: int, limit: int = 20):
